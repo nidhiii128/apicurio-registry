@@ -23,6 +23,61 @@ class TableBuilderTest {
     }
 
     @Test
+    void resolveMaxColumnWidthFallsBackToDefaultWhenColumnsEnvIsAbsent() {
+        assertEquals(25, TableBuilder.resolveMaxColumnWidth(null));
+    }
+
+    @Test
+    void resolveMaxColumnWidthFallsBackToDefaultWhenColumnsEnvIsNotANumber() {
+        assertEquals(25, TableBuilder.resolveMaxColumnWidth("not-a-number"));
+    }
+
+    @Test
+    void resolveMaxColumnWidthFallsBackToDefaultWhenColumnsEnvIsBelowMinimum() {
+        assertEquals(25, TableBuilder.resolveMaxColumnWidth("2"));
+    }
+
+    @Test
+    void resolveMaxColumnWidthUsesColumnsEnvWhenWithinBounds() {
+        assertEquals(50, TableBuilder.resolveMaxColumnWidth("50"));
+    }
+
+    @Test
+    void resolveMaxColumnWidthTrimsSurroundingWhitespace() {
+        assertEquals(40, TableBuilder.resolveMaxColumnWidth(" 40 "));
+    }
+
+    @Test
+    void resolveMaxColumnWidthAtTheMinimumIsUsedAsIs() {
+        assertEquals(3, TableBuilder.resolveMaxColumnWidth("3"));
+    }
+
+    @Test
+    void resolveMaxColumnWidthCapsAtTheUpperBoundWhenColumnsEnvIsVeryLarge() {
+        assertEquals(80, TableBuilder.resolveMaxColumnWidth("500"));
+    }
+
+    @Test
+    void resolveMaxColumnWidthAtUpperBoundIsUsedAsIs() {
+        assertEquals(80, TableBuilder.resolveMaxColumnWidth("80"));
+    }
+
+    @Test
+    void resolveMaxColumnWidthAboveUpperBoundIsCapped() {
+        assertEquals(80, TableBuilder.resolveMaxColumnWidth("81"));
+    }
+
+    @Test
+    void longCellValuesWrapAcrossMultipleLinesUnderTheResolvedMaxColumnWidth() {
+        var longValue = "x".repeat(200);
+        var output = render(new TableBuilder()
+                .addColumns("Description")
+                .addRow(longValue));
+        var lines = output.split("\n");
+        assertThat(lines.length).isGreaterThan(3);
+    }
+
+    @Test
     void setSelectedColumnsKeepsOnlyRequestedColumnsInRequestedOrder() {
         var output = render(new TableBuilder()
                 .addColumns("Group ID", "Artifact ID", "Name")
@@ -145,5 +200,13 @@ class TableBuilderTest {
         var emptySelection = render(new TableBuilder().addColumns("Group ID", "Name")
                 .addRow("g1", "n1").setSelectedColumns(List.of()));
         assertThat(row(emptySelection, 0)).containsExactly("Group ID", "Name");
+    }
+
+    @Test
+    void detectTerminalWidthReturnsNullUnderTestHarness() {
+        // Maven/Surefire test JVMs aren't attached to an interactive console, so System.console()
+        // is null and detection should short-circuit without ever shelling out to stty.
+        assertThat(System.console()).isNull();
+        assertThat(TableBuilder.detectTerminalWidth()).isNull();
     }
 }
